@@ -1,0 +1,9 @@
+{
+  "name": "Wallflower",
+  "description": "Convert SVG drawings to pen-plotter G-code and save them to the SD card.",
+  "version": "1.0.0",
+  "entry": "index.html",
+  "icon": "icon.png",
+  "layout": "workspace",
+  "layoutMobile": "full"
+}
