@@ -80,6 +80,14 @@
       "version": "1.4.4",
       "author": "Franky464",
       "base": "https://raw.githubusercontent.com/figamore/FigUI/main/plugins/Utility-G-code_Generator/"
-  }
+    },
+    {
+      "id": "wallflower",
+      "name": "Wallflower",
+      "description": "Convert, save and send SVGs as G-code for vertical plotters and polargraphs with center origin and a servo for pen up/down.",
+      "version": "1.0.0",
+      "author": "i-draw-monkeys",
+      "base": "https://raw.githubusercontent.com/figamore/FigUI/main/plugins/wallflower/"
+    }
   ]
 }
