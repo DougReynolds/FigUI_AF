@@ -908,10 +908,16 @@ if (typeof module !== "undefined") module.exports = WF;
     const v = parseFloat(String(settings[k]).trim().replace(",", "."));
     return Number.isFinite(v) ? v : fallback;
   };
+  // The fields are free text, so clamp before anything reaches the G-code.
+  // A negative dwell or feed is rejected by the controller mid-job, and a value
+  // under 0.001 would be written in exponent form, which no parser accepts.
+  const dwellValue = (v) => Math.max(0, Math.round(v * 1000) / 1000);
   const values = () => ({
-    penUp: Math.round(num("pen_up", 0)), penDown: Math.round(num("pen_down", 80)),
-    dwell: num("dwell", 0.2), upDwell: Math.max(0, num("pen_up_dwell", 0.2)),
-    feed: Math.round(num("feed", 2300)),
+    penUp: Math.max(0, Math.round(num("pen_up", 0))),
+    penDown: Math.max(0, Math.round(num("pen_down", 80))),
+    dwell: dwellValue(num("dwell", 0.2)),
+    upDwell: dwellValue(num("pen_up_dwell", 0.2)),
+    feed: Math.max(1, Math.round(num("feed", 2300))),
   });
 
   function showSettings() {
@@ -983,6 +989,7 @@ if (typeof module !== "undefined") module.exports = WF;
     });
     stats = o;
     $("save").disabled = !result.length;
+    invalidateSaved();               // the card still holds the previous G-code
     draw();
     report();
   }
@@ -1076,6 +1083,16 @@ if (typeof module !== "undefined") module.exports = WF;
     return f;
   }
 
+  // The path last written to the SD card, or null when what is on the card no
+  // longer matches the preview. Start Job is only enabled while this is set.
+  let savedPath = null;
+
+  function invalidateSaved() {
+    savedPath = null;
+    armed = null;
+    if ($("run")) { $("run").disabled = true; $("run").textContent = "Start Job"; }
+  }
+
   async function save() {
     const file = sdPath();
     if (!result.length || !file) return;
@@ -1085,6 +1102,7 @@ if (typeof module !== "undefined") module.exports = WF;
     try {
       await call("writeFile", { path: "/sd/" + file, content, fs: "sd" });
       $("sd_name").value = file;
+      savedPath = file;
       $("run").disabled = false;
       machineStatus(`Saved ${file} (${content.length.toLocaleString("en-US")} bytes) to the SD card.`, "good");
     } catch (e) {
@@ -1097,7 +1115,7 @@ if (typeof module !== "undefined") module.exports = WF;
   // Two-step rather than a dialog: sandboxed plugins can't open modals.
   let armed = null;
   function startJob() {
-    const file = sdPath();
+    const file = savedPath;          // never sdPath(): the field can have moved on
     if (!file) return;
     if (armed !== file) {
       armed = file;
@@ -1135,6 +1153,7 @@ if (typeof module !== "undefined") module.exports = WF;
   }
   $("open").addEventListener("click", () => $("file").click());
   $("file").addEventListener("change", (e) => { openFile(e.target.files[0]); e.target.value = ""; });
+  $("sd_name").addEventListener("input", invalidateSaved);
   $("save").addEventListener("click", save);
   $("run").addEventListener("click", startJob);
   $("pen-up-btn").addEventListener("click", () => pen("up"));

@@ -1,6 +1,6 @@
 {
   "name": "Wallflower",
-  "description": "Convert SVG drawings to pen-plotter G-code and save them to the SD card.",
+  "description": "Convert, save and send SVGs as G-code for vertical plotters and polargraphs with center origin and a servo for pen up/down.",
   "version": "1.0.0",
   "entry": "index.html",
   "icon": "icon.png",
