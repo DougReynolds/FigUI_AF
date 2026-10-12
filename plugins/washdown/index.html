@@ -4,7 +4,7 @@
 *{box-sizing:border-box}body{margin:0;padding:24px;background:var(--bg,#181818);color:var(--text-primary,#eee);font:15px system-ui,sans-serif}main{max-width:420px;margin:auto}h1{font-size:22px;margin:0 0 20px}#state{font-size:32px;font-weight:700;margin:0 0 18px}button{width:100%;padding:15px;margin:5px 0;border:1px solid var(--border,#555);border-radius:8px;background:var(--elevated,#333);color:inherit;font:inherit;cursor:pointer}#toggle{background:var(--accent,#e49b36);color:#111;font-weight:700;font-size:18px}button:disabled{opacity:.45;cursor:default}#message{color:var(--text-muted,#aaa);font-size:13px;line-height:1.5;min-height:40px}
 </style></head><body><main><h1><img src="icon.png" alt="" style="width:24px;height:24px;vertical-align:middle;margin-right:8px">Washdown</h1><div id="state" role="status">Unknown</div><button id="toggle" disabled>Checking…</button><button id="refresh">Refresh state</button><p id="message">Reading controller…</p></main>
 <script>
-let sequence=0,reading=null,busy=false,machineState='',lastStatusAt=0,sample=null,config=null;
+let sequence=0,reading=null,busy=false,machineState='',lastStatusAt=0,sample=null,config=null,generation=0,refreshQueued=false;
 const session=Date.now().toString(36).toUpperCase();
 const pending=new Map();
 const ui=Object.fromEntries(['state','toggle','refresh','message'].map(id=>[id,document.getElementById(id)]));
@@ -16,17 +16,20 @@ function render(){
  ui.toggle.disabled=busy||reading===null||machineState!=='Idle';
  ui.refresh.disabled=busy||!config||machineState!=='Idle';
 }
-function invalidate(message){reading=null;ui.message.textContent=message;render()}
+function invalidate(message){generation++;reading=null;ui.message.textContent=message;render()}
 function call(method,params={}){return new Promise((resolve,reject)=>{
  const id=String(++sequence),timer=setTimeout(()=>{pending.delete(id);reject(new Error('No response from FigUI.'))},5000);
  pending.set(id,{resolve,reject,timer});window.parent.postMessage({type:'fluid-request',id,method,params},'*');
 })}
-function updateStatus(status){
+function updateStatus(status,autoRefresh=true){
  const previous=machineState;machineState=String(status?.state??'');lastStatusAt=Date.now();
  if(machineState!=='Idle'){
+  refreshQueued=false;
   if(sample)sample.reject(new Error('Machine is not idle.'));
   invalidate('State checks pause while the machine is not idle.');
- }else if(previous!=='Idle'&&!busy&&config){refresh()}
+ }else if(autoRefresh&&previous!=='Idle'&&config){
+  if(busy)refreshQueued=true;else refresh();
+ }
  render();
 }
 window.addEventListener('message',event=>{
@@ -39,6 +42,7 @@ window.addEventListener('message',event=>{
  else if(msg?.type==='fluid-event'&&msg.event==='line'){
   const line=String(msg.data??'');
   if(/^(error:|ALARM:|Grbl)/i.test(line)){
+   refreshQueued=false;
    if(sample)sample.reject(new Error(line));invalidate('Controller: '+line);return;
   }
   if(sample){
@@ -47,7 +51,7 @@ window.addEventListener('message',event=>{
   }
  }
 });
-async function readFeedback(){
+async function readFeedback(runGeneration){
  const token=session+'_'+(++sequence);
  let timer;
  const result=new Promise((resolve,reject)=>{
@@ -56,6 +60,7 @@ async function readFeedback(){
  result.catch(()=>{});
  try{
   await call('sendCommand',{command:'M66 P'+config.inputIndex+' L0'});
+  if(runGeneration!==generation)throw new Error('Feedback operation invalidated.');
   await call('sendCommand',{command:'(PRINT,WASHDOWN_'+token+'=%d#5399)'});
   return await result;
  }finally{clearTimeout(timer);sample=null}
@@ -63,19 +68,28 @@ async function readFeedback(){
 async function run(target){
  if(busy||!config)return;
  busy=true;render();
+ const runGeneration=generation;
  try{
-  const status=await call('getStatus');updateStatus(status);
+  const status=await call('getStatus');
+  if(runGeneration!==generation)return;
+  updateStatus(status,false);
   if(machineState!=='Idle')throw new Error('Washdown controls are available while idle.');
   if(target!==undefined){
    reading=null;ui.message.textContent='Switching…';render();
    await call('sendCommand',{command:(target?'M64 P':'M65 P')+config.outputIndex});
+   if(runGeneration!==generation)return;
   }
-  const measured=await readFeedback();
+  const measured=await readFeedback(runGeneration);
+  if(runGeneration!==generation)return;
   if(machineState!=='Idle')throw new Error('Machine is not idle.');
   reading=measured;
   ui.message.textContent=target!==undefined&&measured!==target?'Feedback does not match the requested state.':config.feedbackLabel+' feedback · '+(measured?'ON':'OFF');
- }catch(error){invalidate(error.message)}
- finally{busy=false;render()}
+ }catch(error){if(runGeneration===generation)invalidate(error.message)}
+ finally{
+  const retry=refreshQueued&&machineState==='Idle'&&config;
+  refreshQueued=false;busy=false;render();
+  if(retry)refresh();
+ }
 }
 function refresh(){return run()}
 ui.toggle.addEventListener('click',()=>{if(reading!==null&&machineState==='Idle')run(!reading)});
