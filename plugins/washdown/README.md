@@ -63,3 +63,7 @@ $Message/Level=Info
 - Missing feedback or a controller error displays Unknown. A command/feedback mismatch displays the measured state with a mismatch message.
 
 The displayed state confirms the configured feedback input. What it verifies depends on the feedback source: a control-signal loopback confirms the output signal, while relay or flow feedback can report the corresponding hardware condition. The plugin does not infer pump operation from a command alone.
+
+## Author
+
+Created by [Douglas Reynolds]https://github.com/DougReynolds, with development assistance from OpenAI Codex.
