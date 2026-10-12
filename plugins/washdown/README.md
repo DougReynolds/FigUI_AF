@@ -66,4 +66,4 @@ The displayed state confirms the configured feedback input. What it verifies dep
 
 ## Author
 
-Created by [Douglas Reynolds] (https://github.com/DougReynolds), with development assistance from OpenAI Codex.
+Created by [Douglas Reynolds](https://github.com/DougReynolds), with development assistance from OpenAI Codex.
