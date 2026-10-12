@@ -1,6 +1,6 @@
 {
     "name": "Washdown",
-    "description": "Washdown pump toggle with GPIO.34 feedback.",
+    "description": "A FigUI plugin for switching a washdown pump through a FluidNC digital output and displaying its state from a separate digital feedback input.",
     "version": "1.1.1",
     "entry": "index.html",
     "layout": "default",
@@ -8,6 +8,6 @@
     "config": {
         "outputIndex": 0,
         "inputIndex": 0,
-        "feedbackLabel": "GPIO.34"
+        "feedbackLabel": "Replace with your label"
     }
 }
