@@ -13,7 +13,7 @@ Add a top-level `config` object to `plugin.json`:
 ```json
 {
   "name": "Washdown",
-  "description": "Washdown pump toggle with digital input feedback.",
+  "description": "A FigUI plugin for switching a washdown pump through a FluidNC digital output and displaying its state from a separate digital feedback input.",
   "version": "1.1.1",
   "entry": "index.html",
   "layout": "default",
